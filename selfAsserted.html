@@ -65,57 +65,65 @@
 
 
           function checkConditions() {
-            if (!isContinueBtnEnabledAndVisible() || !isChangeEmailBtnVisible() || areOtherChangeEmailSiblingsVisible()) {
-              console.log("[UI-DEBUG] - [checkConditions] Conditions not met");
-              return false;
-            }
-            return true;
+          if (!isContinueBtnEnabledAndVisible() || !isChangeEmailBtnVisible() || areOtherChangeEmailSiblingsVisible()) {
+            console.log("[UI-DEBUG] - [checkConditions] Conditions not met");
+            return false;
+          }
+          return true;
+        }
+
+        function tryReorder() {
+          if (alreadyMoved) {
+            console.log("[UI-DEBUG] - [tryReorder] Already moved, skipping");
+            return;
+          }
+          if (!checkConditions()) {
+            console.log("[UI-DEBUG] - [tryReorder] Conditions not met, skipping");
+            return;
           }
 
-          function tryReorder() {
-            if (alreadyMoved) {
-              console.log("[UI-DEBUG] - [tryReorder] Already moved, skipping");
-              return;
-            }
-            if (!checkConditions()) {
-              console.log("[UI-DEBUG] - [tryReorder] Conditions not met, skipping");
-              return;
-            }
-
-            var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
-            var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
-            if (!continueBtn || !changeEmailBtn) {
-              console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #continue or #emailVerificationControl_but_change_claims not found");
-              return;
-            }
-            // move continue button before change email button
-            var continueContainer = document.querySelector('#attributeVerification > .buttons');
-            var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
-            if (!continueContainer || !emailButtonsContainer) {
-              console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #attributeVerification > .buttons or #emailVerificationControl > .buttons not found");
-              return;
-            }
-            continueContainer.parentNode.insertBefore(continueBtn, emailButtonsContainer);
-            console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] Continue button moved before change email button");
-            alreadyMoved = true;
+          var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
+          var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
+          if (!continueBtn || !changeEmailBtn) {
+            console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #continue or #emailVerificationControl_but_change_claims not found");
+            return;
           }
+          // move continue button before change email button
+          var continueContainer = document.querySelector('#attributeVerification > .buttons');
+          var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
+          if (!continueContainer || !emailButtonsContainer) {
+            console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #attributeVerification > .buttons or #emailVerificationControl > .buttons not found");
+            return;
+          }
+          var previousVisibility = continueContainer.style.visibility;
+          continueContainer.style.visibility = 'hidden';
+          emailButtonsContainer.parentNode.insertBefore(continueContainer, emailButtonsContainer);
+          continueContainer.setAttribute('data-reordered', 'true');
+          requestAnimationFrame(function () {
+            continueContainer.style.visibility = previousVisibility || '';
+          });
+          console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] Continue button moved before change email button");
+          alreadyMoved = true;
+        }
 
-          function watchForElements() {
-            // watch for changes in body
+        function watchForElements() {
+          // watch for changes in body
 
-            var observer = new MutationObserver(function (mutations) {
-              mutations.forEach(function (mutation) {
-                console.log("[UI-DEBUG] - [watchForElements] Mutation:", mutation);
-                var elements = getElements();
-                if (elementsInDom(elements)) {
-                  console.log("[UI-DEBUG] - [watchForElements] Elements in DOM");
-                  isInitialized = true;
+          var observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+              console.log("[UI-DEBUG] - [watchForElements] Mutation:", mutation);
+              var elements = getElements();
+              if (elementsInDom(elements)) {
+                console.log("[UI-DEBUG] - [watchForElements] Elements in DOM");
+                isInitialized = true;
+                if(!alreadyMoved) {
                   tryReorder();
                 }
-              });
+              }
             });
-            observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
-          }
+          });
+          observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+        }
           function elementsInDom(elements) {
             return elements.every(function (element) {
               return element !== null;
