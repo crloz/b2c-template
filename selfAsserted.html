@@ -85,24 +85,29 @@
           var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
           var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
           if (!continueBtn || !changeEmailBtn) {
-            console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #continue or #emailVerificationControl_but_change_claims not found");
+            console.log("[UI-DEBUG] - [tryReorder] #continue or #emailVerificationControl_but_change_claims not found");
             return;
           }
-          // move continue button before change email button
-          var continueContainer = document.querySelector('#attributeVerification > .buttons');
+
+          var originalContinueContainer = document.querySelector('#attributeVerification > .buttons');
           var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
-          if (!continueContainer || !emailButtonsContainer) {
-            console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #attributeVerification > .buttons or #emailVerificationControl > .buttons not found");
+          if (!originalContinueContainer || !emailButtonsContainer) {
+            console.log("[UI-DEBUG] - [tryReorder] #attributeVerification > .buttons or #emailVerificationControl > .buttons not found");
             return;
           }
-          var previousVisibility = continueContainer.style.visibility;
-          continueContainer.style.visibility = 'hidden';
-          emailButtonsContainer.parentNode.insertBefore(continueContainer, emailButtonsContainer);
-          continueContainer.setAttribute('data-reordered', 'true');
-          requestAnimationFrame(function () {
-            continueContainer.style.visibility = previousVisibility || '';
-          });
-          console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] Continue button moved before change email button");
+
+          // Create new container for the continue button
+          var newContinueContainer = document.createElement('div');
+          newContinueContainer.className = 'buttons';
+          newContinueContainer.setAttribute('data-reordered', 'true');
+          
+          // Move the continue button to the new container
+          newContinueContainer.appendChild(continueBtn);
+          
+          // Insert the new container before the email buttons container
+          emailButtonsContainer.parentNode.insertBefore(newContinueContainer, emailButtonsContainer);
+          
+          console.log("[UI-DEBUG] - [tryReorder] Continue button moved to new container before change email button");
           alreadyMoved = true;
         }
 
