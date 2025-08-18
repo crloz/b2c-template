@@ -17,12 +17,8 @@
           var abortReorder = false;
           var isInitialized = false;
           function watchForElements() {
-            // qatch changes in #api 
-            var api = document.getElementById('api');
-            if (!api) {
-              console.log("[UI-DEBUG] - [watchForElements] #api not found");
-              return;
-            }
+            // watch for changes in body
+            
             var observer = new MutationObserver(function (mutations) {
               mutations.forEach(function (mutation) {
                 console.log("[UI-DEBUG] - [watchForElements] Mutation:", mutation);
@@ -33,7 +29,7 @@
                 }
               });
             });
-            observer.observe(api, { childList: true, subtree: true, attributes: true, characterData: true });
+            observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
           }
           function elementsInDom(elements) {
             return elements.every(function (element) {
