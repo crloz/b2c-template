@@ -10,6 +10,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
     <script id="ui-helper" defer>
+      console.log("ui-helper loaded");
+      // use mutation observer to check if the continue button is enabled
+      var observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          console.log(mutation);
+        });
+      });
+      observer.observe(document.querySelector("#continue"), { childList: true, subtree: true, attributes: true, characterData: true, });
+      
      (function () {
         "use strict";
 
