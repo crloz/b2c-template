@@ -16,9 +16,93 @@
           var alreadyMoved = false;
           var abortReorder = false;
           var isInitialized = false;
+          function isContinueBtnEnabledAndVisible() {
+            var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
+            if (!continueBtn) {
+              console.log("[UI-DEBUG] - [isContinueBtnEnabledAndVisible] #continue not found");
+              return false;
+            }
+            var computedStyle = window.getComputedStyle(continueBtn);
+            var ariaDisabled = continueBtn.getAttribute('aria-disabled') === 'false';
+            var opacity = computedStyle.opacity === '1';
+            console.log("[UI-DEBUG] - [isContinueBtnEnabledAndVisible] ariaDisabled:", ariaDisabled, "opacity:", opacity);
+            return ariaDisabled && opacity;
+          }
+          function isChangeEmailBtnVisible() {
+            var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
+            if (!changeEmailBtn) {
+              console.log("[UI-DEBUG] - [isChangeEmailBtnVisible] #emailVerificationControl_but_change_claims not found");
+              return false;
+            }
+            // /aria-hidden="false"
+            var computedStyle = window.getComputedStyle(changeEmailBtn);
+            var ariaHidden = changeEmailBtn.getAttribute('aria-hidden') === 'false';
+            var opacity = computedStyle.opacity === '1';
+            console.log("[UI-DEBUG] - [isChangeEmailBtnVisible] ariaHidden:", ariaHidden, "opacity:", opacity);
+            return ariaHidden && opacity;
+          }
+
+          function areOtherChangeEmailSiblingsVisible() {
+            try {
+              var container = document.querySelector('#emailVerificationControl > .buttons');
+              if (!container) return false;
+              var buttons = Array.prototype.slice.call(container.querySelectorAll('button'));
+              var others = buttons.filter(function (b) { return b.id !== 'emailVerificationControl_but_change_claims'; });
+              var hasOtherVisible = others.some(function (btn) {
+                var computedStyle = window.getComputedStyle(btn);
+                var display = computedStyle.display !== 'none';
+                var ariaHidden = btn.getAttribute('aria-hidden') !== 'true';
+                console.log("[UI-DEBUG] - [areOtherChangeEmailSiblingsVisible] btn:", btn.id, "display:", display, "ariaHidden:", ariaHidden);
+                return display && ariaHidden;
+              });
+              console.log("[UI-DEBUG] areOtherChangeEmailSiblingsVisible:", hasOtherVisible);
+              return hasOtherVisible;
+            } catch (e) {
+              console.log("[UI-DEBUG] Error checking other email siblings:", e);
+              return false;
+            }
+          }
+
+
+          function checkConditions() {
+            if (!isContinueBtnEnabledAndVisible() || !isChangeEmailBtnVisible() || areOtherChangeEmailSiblingsVisible()) {
+              console.log("[UI-DEBUG] - [checkConditions] Conditions not met");
+              return false;
+            }
+            return true;
+          }
+
+          function tryReorder() {
+            if (alreadyMoved) {
+              console.log("[UI-DEBUG] - [tryReorder] Already moved, skipping");
+              return;
+            }
+            if (!checkConditions()) {
+              console.log("[UI-DEBUG] - [tryReorder] Conditions not met, skipping");
+              return;
+            }
+
+            var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
+            var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
+            if (!continueBtn || !changeEmailBtn) {
+              console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #continue or #emailVerificationControl_but_change_claims not found");
+              return;
+            }
+            // move continue button before change email button
+            var continueContainer = document.querySelector('#attributeVerification > .buttons');
+            var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
+            if (!continueContainer || !emailButtonsContainer) {
+              console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] #attributeVerification > .buttons or #emailVerificationControl > .buttons not found");
+              return;
+            }
+            continueContainer.parentNode.insertBefore(continueBtn, emailButtonsContainer);
+            console.log("[UI-DEBUG] - [moveContinueBeforeChangeEmail] Continue button moved before change email button");
+            alreadyMoved = true;
+          }
+
           function watchForElements() {
             // watch for changes in body
-            
+
             var observer = new MutationObserver(function (mutations) {
               mutations.forEach(function (mutation) {
                 console.log("[UI-DEBUG] - [watchForElements] Mutation:", mutation);
@@ -26,6 +110,7 @@
                 if (elementsInDom(elements)) {
                   console.log("[UI-DEBUG] - [watchForElements] Elements in DOM");
                   isInitialized = true;
+                  tryReorder();
                 }
               });
             });
@@ -60,7 +145,7 @@
             console.log("[UI-DEBUG] Elements:", elements);
             if (elementsInDom(elements)) {
               console.log("[UI-DEBUG] Elements in DOM");
-              
+
             } else {
               // watch for elements to be in the DOM
               console.log("[UI-DEBUG] Watching for elements to be in the DOM");
@@ -83,8 +168,8 @@
             }
           }, 1000);
         })();
+
       
-     
 
       // function isElementVisible(element) {
       //   if (!element) return false;
