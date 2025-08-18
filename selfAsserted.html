@@ -9,17 +9,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
-    <script id="ui-helper" defer>
+    <script id="ui-helper">
       console.log("ui-helper loaded");
-      // use mutation observer to check if the continue button is enabled
-      var observer = new MutationObserver(function (mutations) {
-        mutations.forEach(function (mutation) {
-          console.log(mutation);
-        });
-      });
-      observer.observe(document.querySelector("#continue"), { childList: true, subtree: true, attributes: true, characterData: true, });
       
-     (function () {
+      (function () {
         "use strict";
 
         function isContinueBtnEnabled(btn) {
@@ -37,12 +30,83 @@
           return true;
         }
 
-        document.addEventListener("DOMContentLoaded", function () {
-          console.log("[UI-DEBUG] Document loaded, initializing UI helper...");
+        function waitForElement(selector, callback, timeout) {
+          timeout = timeout || 10000; // 10 seconds default
+          var startTime = Date.now();
+          
+          function checkForElement() {
+            var element = document.querySelector(selector);
+            if (element) {
+              console.log("[UI-DEBUG] Element found:", selector);
+              callback(element);
+              return;
+            }
+            
+            if (Date.now() - startTime > timeout) {
+              console.log("[UI-DEBUG] Timeout waiting for element:", selector);
+              return;
+            }
+            
+            // Try again in 100ms
+            setTimeout(checkForElement, 100);
+          }
+          
+          checkForElement();
+        }
+
+        function initializeUIHelper() {
+          console.log("[UI-DEBUG] Initializing UI helper...");
+          console.log("[UI-DEBUG] Document ready state:", document.readyState);
+          
           var alreadyMoved = false;
           var abortReorder = false;
-          var continueBtn = document.querySelector("#continue");
-        });
+          
+          // Wait for the continue button to appear
+          waitForElement("#continue", function(continueBtn) {
+            console.log("[UI-DEBUG] Continue button found, setting up observer");
+            
+            // Set up mutation observer for the continue button
+            var observer = new MutationObserver(function (mutations) {
+              mutations.forEach(function (mutation) {
+                console.log("[UI-DEBUG] Mutation observed:", mutation.type, mutation);
+                if (mutation.type === 'attributes' && 
+                    (mutation.attributeName === 'aria-disabled' || mutation.attributeName === 'style')) {
+                  var isEnabled = isContinueBtnEnabled(continueBtn);
+                  console.log("[UI-DEBUG] Continue button enabled state:", isEnabled);
+                }
+              });
+            });
+            
+            observer.observe(continueBtn, { 
+              childList: true, 
+              subtree: true, 
+              attributes: true, 
+              characterData: true 
+            });
+            
+            // Initial check
+            var initialState = isContinueBtnEnabled(continueBtn);
+            console.log("[UI-DEBUG] Initial continue button state:", initialState);
+          });
+        }
+
+        // Try multiple approaches to ensure execution
+        if (document.readyState === 'loading') {
+          console.log("[UI-DEBUG] Document still loading, waiting for DOMContentLoaded");
+          document.addEventListener("DOMContentLoaded", initializeUIHelper);
+        } else if (document.readyState === 'interactive' || document.readyState === 'complete') {
+          console.log("[UI-DEBUG] Document already loaded, initializing immediately");
+          initializeUIHelper();
+        }
+        
+        // Fallback: try again after a short delay
+        setTimeout(function() {
+          if (!document.querySelector("#continue")) {
+            console.log("[UI-DEBUG] Fallback: retrying initialization");
+            initializeUIHelper();
+          }
+        }, 1000);
+
       })();
 
     </script>
