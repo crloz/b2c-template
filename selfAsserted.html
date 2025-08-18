@@ -10,310 +10,251 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
     <script id="ui-helper">
-      /**
-   * UI Helper for Azure AD B2C Password Reset Flow
-   * Reorders Continue button before Change Email button when conditions are met
-   */
         (function () {
-          'use strict';
+            'use strict';
 
-          // Configuration
-          const CONFIG = {
-            DEBUG: true, // Set to false in production
-            RETRY_DELAY: 1000,
-            OBSERVER_DEBOUNCE: 50,
-            SELECTORS: {
-              continueBtn: '#attributeVerification > .buttons #continue',
-              changeEmailBtn: '#emailVerificationControl_but_change_claims',
-              continueContainer: '#attributeVerification > .buttons',
-              emailContainer: '#emailVerificationControl > .buttons'
-            }
-          };
+            const CONFIG = {
+              DEBUG: false,
+              RETRY_DELAY: 1000,
+              OBSERVER_DEBOUNCE: 50,
+              SELECTORS: {
+                continueBtn: '#attributeVerification > .buttons #continue',
+                changeEmailBtn: '#emailVerificationControl_but_change_claims',
+                continueContainer: '#attributeVerification > .buttons',
+                emailContainer: '#emailVerificationControl > .buttons'
+              }
+            };
 
-          // State management
-          const state = {
-            isReordered: false,
-            isInitialized: false,
-            observer: null,
-            debounceTimer: null
-          };
+            const state = {
+              isReordered: false,
+              isInitialized: false,
+              observer: null,
+              debounceTimer: null
+            };
 
-          // Logging utility
-          const logger = {
-            debug: (...args) => CONFIG.DEBUG && console.log('[UI-Helper]', ...args),
-            error: (...args) => console.error('[UI-Helper Error]', ...args)
-          };
+            const logger = {
+              debug: (...args) => CONFIG.DEBUG && console.log('[UI-Helper]', ...args),
+              error: (...args) => console.error('[UI-Helper Error]', ...args)
+            };
 
-          /**
-           * Check if an element is truly visible
-           */
-          const isElementVisible = (element) => {
-            if (!element) return false;
-            const style = window.getComputedStyle(element);
-            return style.opacity === '1' && style.display !== 'none';
-          };
+            const isElementVisible = (element) => {
+              if (!element) return false;
+              const style = window.getComputedStyle(element);
+              return style.opacity === '1' && style.display !== 'none';
+            };
 
-          /**
-           * Check if Continue button is enabled and visible
-           */
-          const isContinueButtonReady = () => {
-            const btn = document.querySelector(CONFIG.SELECTORS.continueBtn);
-            if (!btn) {
-              logger.debug('Continue button not found');
-              return false;
-            }
+            const isContinueButtonReady = () => {
+              const btn = document.querySelector(CONFIG.SELECTORS.continueBtn);
+              if (!btn) {
+                logger.debug('Continue button not found');
+                return false;
+              }
 
-            const isEnabled = btn.getAttribute('aria-disabled') === 'false';
-            const isVisible = isElementVisible(btn);
+              const isEnabled = btn.getAttribute('aria-disabled') === 'false';
+              const isVisible = isElementVisible(btn);
 
-            logger.debug('Continue button state:', { isEnabled, isVisible });
-            return isEnabled && isVisible;
-          };
+              logger.debug('Continue button state:', { isEnabled, isVisible });
+              return isEnabled && isVisible;
+            };
 
-          /**
-           * Check if Change Email button is visible
-           */
-          const isChangeEmailButtonVisible = () => {
-            const btn = document.getElementById('emailVerificationControl_but_change_claims');
-            if (!btn) {
-              logger.debug('Change Email button not found');
-              return false;
-            }
+            const isChangeEmailButtonVisible = () => {
+              const btn = document.getElementById('emailVerificationControl_but_change_claims');
+              if (!btn) {
+                logger.debug('Change Email button not found');
+                return false;
+              }
 
-            const hasCorrectAria = btn.getAttribute('aria-hidden') === 'false';
-            const isVisible = isElementVisible(btn);
+              const hasCorrectAria = btn.getAttribute('aria-hidden') === 'false';
+              const isVisible = isElementVisible(btn);
 
-            logger.debug('Change Email button state:', { hasCorrectAria, isVisible });
-            return hasCorrectAria && isVisible;
-          };
+              logger.debug('Change Email button state:', { hasCorrectAria, isVisible });
+              return hasCorrectAria && isVisible;
+            };
 
-          /**
-           * Check if other sibling buttons are visible in email container
-           */
-          const hasVisibleEmailSiblings = () => {
-            try {
-              const container = document.querySelector(CONFIG.SELECTORS.emailContainer);
-              if (!container) return false;
+            const hasVisibleEmailSiblings = () => {
+              try {
+                const container = document.querySelector(CONFIG.SELECTORS.emailContainer);
+                if (!container) return false;
 
-              const buttons = Array.from(container.querySelectorAll('button'));
-              const otherButtons = buttons.filter(btn =>
-                btn.id !== 'emailVerificationControl_but_change_claims'
-              );
+                const buttons = Array.from(container.querySelectorAll('button'));
+                const otherButtons = buttons.filter(btn =>
+                  btn.id !== 'emailVerificationControl_but_change_claims'
+                );
 
-              const hasVisible = otherButtons.some(btn => {
-                const ariaHidden = btn.getAttribute('aria-hidden') !== 'true';
-                const isVisible = isElementVisible(btn);
-                return ariaHidden && isVisible;
+                const hasVisible = otherButtons.some(btn => {
+                  const ariaHidden = btn.getAttribute('aria-hidden') !== 'true';
+                  const isVisible = isElementVisible(btn);
+                  return ariaHidden && isVisible;
+                });
+
+                logger.debug('Other email siblings visible:', hasVisible);
+                return hasVisible;
+              } catch (error) {
+                logger.error('Error checking email siblings:', error);
+                return false;
+              }
+            };
+
+            const shouldReorder = () => {
+              const conditions = {
+                continueReady: isContinueButtonReady(),
+                changeEmailVisible: isChangeEmailButtonVisible(),
+                noOtherSiblings: !hasVisibleEmailSiblings()
+              };
+
+              const shouldDo = conditions.continueReady &&
+                conditions.changeEmailVisible &&
+                conditions.noOtherSiblings;
+
+              logger.debug('Reorder conditions:', conditions, 'Should reorder:', shouldDo);
+              return shouldDo;
+            };
+
+            const getRequiredElements = () => {
+              return {
+                continueBtn: document.querySelector(CONFIG.SELECTORS.continueBtn),
+                changeEmailBtn: document.getElementById('emailVerificationControl_but_change_claims'),
+                continueContainer: document.querySelector(CONFIG.SELECTORS.continueContainer),
+                emailContainer: document.querySelector(CONFIG.SELECTORS.emailContainer)
+              };
+            };
+
+            const areElementsReady = () => {
+              const elements = getRequiredElements();
+              return Object.values(elements).every(el => el !== null);
+            };
+
+            const performReorder = () => {
+              if (state.isReordered) {
+                logger.debug('Already reordered, skipping');
+                return false;
+              }
+
+              if (!shouldReorder()) {
+                logger.debug('Conditions not met for reordering');
+                return false;
+              }
+
+              const elements = getRequiredElements();
+
+              if (!elements.continueBtn || !elements.emailContainer) {
+                logger.debug('Required elements not found for reordering');
+                return false;
+              }
+
+              try {
+                const newContainer = document.createElement('div');
+                newContainer.className = 'buttons';
+                newContainer.setAttribute('data-reordered', 'true');
+
+                newContainer.appendChild(elements.continueBtn);
+
+                elements.emailContainer.parentNode.insertBefore(newContainer, elements.emailContainer);
+
+                state.isReordered = true;
+                logger.debug('✅ Button reordering completed successfully');
+
+                cleanupObserver();
+
+                return true;
+              } catch (error) {
+                logger.error('Failed to reorder buttons:', error);
+                return false;
+              }
+            };
+
+            const debouncedReorder = () => {
+              clearTimeout(state.debounceTimer);
+              state.debounceTimer = setTimeout(() => {
+                if (!state.isReordered) {
+                  performReorder();
+                }
+              }, CONFIG.OBSERVER_DEBOUNCE);
+            };
+
+            const cleanupObserver = () => {
+              if (state.observer) {
+                state.observer.disconnect();
+                state.observer = null;
+                logger.debug('Observer disconnected');
+              }
+            };
+
+            const setupObserver = () => {
+              if (state.observer) return;
+
+              state.observer = new MutationObserver((mutations) => {
+                if (state.isReordered) {
+                  cleanupObserver();
+                  return;
+                }
+
+                const hasRelevantMutation = mutations.some(mutation => {
+                  const target = mutation.target;
+                  if (typeof target.id === 'string') {
+                    return target.id.includes('email') ||
+                      target.id.includes('attribute') ||
+                      target.className?.includes?.('buttons');
+                  }
+                  return false;
+                });
+
+                if (hasRelevantMutation || areElementsReady()) {
+                  debouncedReorder();
+                }
               });
 
-              logger.debug('Other email siblings visible:', hasVisible);
-              return hasVisible;
-            } catch (error) {
-              logger.error('Error checking email siblings:', error);
-              return false;
-            }
-          };
+              const observerConfig = {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['aria-disabled', 'aria-hidden', 'style', 'class']
+              };
 
-          /**
-           * Check if all conditions are met for reordering
-           */
-          const shouldReorder = () => {
-            const conditions = {
-              continueReady: isContinueButtonReady(),
-              changeEmailVisible: isChangeEmailButtonVisible(),
-              noOtherSiblings: !hasVisibleEmailSiblings()
+              state.observer.observe(document.body, observerConfig);
+              logger.debug('Observer setup complete');
             };
 
-            const shouldDo = conditions.continueReady &&
-              conditions.changeEmailVisible &&
-              conditions.noOtherSiblings;
-
-            logger.debug('Reorder conditions:', conditions, 'Should reorder:', shouldDo);
-            return shouldDo;
-          };
-
-          /**
-           * Get all required DOM elements
-           */
-          const getRequiredElements = () => {
-            return {
-              continueBtn: document.querySelector(CONFIG.SELECTORS.continueBtn),
-              changeEmailBtn: document.getElementById('emailVerificationControl_but_change_claims'),
-              continueContainer: document.querySelector(CONFIG.SELECTORS.continueContainer),
-              emailContainer: document.querySelector(CONFIG.SELECTORS.emailContainer)
-            };
-          };
-
-          /**
-           * Check if all required elements exist in DOM
-           */
-          const areElementsReady = () => {
-            const elements = getRequiredElements();
-            return Object.values(elements).every(el => el !== null);
-          };
-
-          /**
-           * Perform the button reordering
-           */
-          const performReorder = () => {
-            if (state.isReordered) {
-              logger.debug('Already reordered, skipping');
-              return false;
-            }
-
-            if (!shouldReorder()) {
-              logger.debug('Conditions not met for reordering');
-              return false;
-            }
-
-            const elements = getRequiredElements();
-
-            // Validate all elements exist
-            if (!elements.continueBtn || !elements.emailContainer) {
-              logger.debug('Required elements not found for reordering');
-              return false;
-            }
-
-            try {
-              // Create new container for continue button
-              const newContainer = document.createElement('div');
-              newContainer.className = 'buttons';
-              newContainer.setAttribute('data-reordered', 'true');
-
-              // Move continue button to new container
-              newContainer.appendChild(elements.continueBtn);
-
-              // Insert new container before email container
-              elements.emailContainer.parentNode.insertBefore(newContainer, elements.emailContainer);
-
-              state.isReordered = true;
-              logger.debug('✅ Button reordering completed successfully');
-
-              // Clean up observer as task is complete
-              cleanupObserver();
-
-              return true;
-            } catch (error) {
-              logger.error('Failed to reorder buttons:', error);
-              return false;
-            }
-          };
-
-          /**
-           * Debounced version of performReorder
-           */
-          const debouncedReorder = () => {
-            clearTimeout(state.debounceTimer);
-            state.debounceTimer = setTimeout(() => {
-              if (!state.isReordered) {
-                performReorder();
-              }
-            }, CONFIG.OBSERVER_DEBOUNCE);
-          };
-
-          /**
-           * Clean up MutationObserver
-           */
-          const cleanupObserver = () => {
-            if (state.observer) {
-              state.observer.disconnect();
-              state.observer = null;
-              logger.debug('Observer disconnected');
-            }
-          };
-
-          /**
-           * Setup MutationObserver to watch for DOM changes
-           */
-          const setupObserver = () => {
-            if (state.observer) return;
-
-            state.observer = new MutationObserver((mutations) => {
-              // Only process if not already reordered
-              if (state.isReordered) {
-                cleanupObserver();
+            const initialize = () => {
+              if (state.isInitialized) {
+                logger.debug('Already initialized');
                 return;
               }
 
-              // Check if relevant mutations occurred
-              const hasRelevantMutation = mutations.some(mutation => {
-                const target = mutation.target;
-                if (typeof target.id === 'string') {
-                  return target.id.includes('email') ||
-                    target.id.includes('attribute') ||
-                    target.className?.includes?.('buttons');
+              state.isInitialized = true;
+              logger.debug('Initializing UI Helper...');
+
+              if (areElementsReady()) {
+                logger.debug('Elements ready, attempting immediate reorder');
+                if (!performReorder()) {
+                  setupObserver();
                 }
-                return false;
-              });
-
-              if (hasRelevantMutation || areElementsReady()) {
-                debouncedReorder();
-              }
-            });
-
-            // Optimize observer config - only observe what we need
-            const observerConfig = {
-              childList: true,
-              subtree: true,
-              attributes: true,
-              attributeFilter: ['aria-disabled', 'aria-hidden', 'style', 'class']
-            };
-
-            state.observer.observe(document.body, observerConfig);
-            logger.debug('Observer setup complete');
-          };
-
-          /**
-           * Initialize the UI helper
-           */
-          const initialize = () => {
-            if (state.isInitialized) {
-              logger.debug('Already initialized');
-              return;
-            }
-
-            state.isInitialized = true;
-            logger.debug('Initializing UI Helper...');
-
-            if (areElementsReady()) {
-              logger.debug('Elements ready, attempting immediate reorder');
-              if (!performReorder()) {
-                // If reorder failed but elements exist, setup observer
+              } else {
+                logger.debug('Elements not ready, setting up observer');
                 setupObserver();
               }
-            } else {
-              logger.debug('Elements not ready, setting up observer');
-              setupObserver();
-            }
-          };
+            };
 
-          /**
-           * Multiple initialization strategies for reliability
-           */
-          const startInitialization = () => {
-            // Strategy 1: Check document ready state
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', initialize);
-            } else {
-              initialize();
-            }
-
-            // Strategy 2: Fallback with delay
-            setTimeout(() => {
-              if (!state.isInitialized || !state.isReordered) {
-                logger.debug('Fallback initialization attempt');
+            const startInitialization = () => {
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialize);
+              } else {
                 initialize();
               }
-            }, CONFIG.RETRY_DELAY);
 
-            // Strategy 3: Clean up on page unload
-            window.addEventListener('beforeunload', cleanupObserver);
-          };
+              setTimeout(() => {
+                if (!state.isInitialized || !state.isReordered) {
+                  logger.debug('Fallback initialization attempt');
+                  initialize();
+                }
+              }, CONFIG.RETRY_DELAY);
 
-          // Start the process
-          startInitialization();
+              window.addEventListener('beforeunload', cleanupObserver);
+            };
 
-        })();
+            startInitialization();
+
+          })();
 
     </script>
     <style id="common">
