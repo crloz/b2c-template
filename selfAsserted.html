@@ -11,238 +11,312 @@
     <link href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
     <script id="ui-helper">
       console.log("ui-helper loaded");
-      
-      // Global variables for button reordering
-      var alreadyMoved = false;
-      var abortReorder = false;
-
-      function isElementVisible(element) {
-        if (!element) return false;
-        var style = window.getComputedStyle(element);
-        return style.display !== 'none' && 
-               style.visibility !== 'hidden' && 
-               style.opacity !== '0' && 
-               element.offsetWidth > 0 && 
-               element.offsetHeight > 0;
-      }
-
-      function areButtonsReady() {
-        var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
-        var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
-        var continueContainer = document.querySelector('#attributeVerification > .buttons');
-        var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
-        if (!changeEmailBtn || !continueBtn || !continueContainer || !emailButtonsContainer) return false;
-
-        var changeVisible = isElementVisible(changeEmailBtn) && changeEmailBtn.getAttribute('aria-hidden') !== 'true';
-        var continueEnabled = continueBtn.getAttribute('aria-disabled') === 'false' && !continueBtn.disabled;
-        
-        console.log("[UI-DEBUG] areButtonsReady - changeVisible:", changeVisible, "continueEnabled:", continueEnabled);
-        return changeVisible && continueEnabled;
-      }
-
-      function areOtherChangeEmailSiblingsVisible() {
-        try {
-          var container = document.querySelector('#emailVerificationControl > .buttons');
-          if (!container) return false;
-          var buttons = Array.prototype.slice.call(container.querySelectorAll('button'));
-          var others = buttons.filter(function (b) { return b.id !== 'emailVerificationControl_but_change_claims'; });
-          var hasOtherVisible = others.some(function (btn) {
-            return isElementVisible(btn) && btn.getAttribute('aria-hidden') !== 'true';
-          });
-          console.log("[UI-DEBUG] areOtherChangeEmailSiblingsVisible:", hasOtherVisible);
-          return hasOtherVisible;
-        } catch (e) {
-          console.log("[UI-DEBUG] Error checking other email siblings:", e);
-          return false;
-        }
-      }
-
-      function moveContinueBeforeChangeEmail() {
-        if (alreadyMoved) {
-          console.log("[UI-DEBUG] Already moved, skipping");
-          return;
-        }
-        
-        var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
-        var continueContainer = document.querySelector('#attributeVerification > .buttons');
-        if (!emailButtonsContainer || !continueContainer) {
-          console.log("[UI-DEBUG] Required containers not found");
-          return;
-        }
-
-        console.log("[UI-DEBUG] Moving continue button before change email button");
-        alreadyMoved = true;
-
-        var previousVisibility = continueContainer.style.visibility;
-        continueContainer.style.visibility = 'hidden';
-        emailButtonsContainer.parentNode.insertBefore(continueContainer, emailButtonsContainer);
-        continueContainer.setAttribute('data-reordered', 'true');
-        requestAnimationFrame(function () {
-          continueContainer.style.visibility = previousVisibility || '';
-          console.log("[UI-DEBUG] Button reordering completed");
-        });
-      }
-
-      function maybeReorder() {
-        if (abortReorder) {
-          console.log("[UI-DEBUG] Reorder aborted");
-          return false;
-        }
-        
-        if (areOtherChangeEmailSiblingsVisible()) {
-          console.log("[UI-DEBUG] Other email siblings visible, aborting reorder");
-          abortReorder = true; 
-          return false;
-        }
-        
-        if (areButtonsReady()) {
-          console.log("[UI-DEBUG] Buttons ready, executing reorder");
-          moveContinueBeforeChangeEmail();
-          return true;
-        }
-        
-        console.log("[UI-DEBUG] Buttons not ready yet");
-        return false;
-      }
-
-      
       (function () {
-        "use strict";
-
-        function isContinueBtnEnabled(btn) {
-          if (!btn) return false;
-          var computedStyle = window.getComputedStyle(btn);
-          // is enabled when aria-disabled is false and opacity is 1
-          console.log(
-            "[UI-DEBUG] isContinueBtnEnabled: checking if continue button is enabled",
-            btn.getAttribute("aria-disabled"),
-            computedStyle.opacity
-          );
-          if (btn.getAttribute("aria-disabled") === "true") return false;
-          if (computedStyle.opacity !== "1") return false;
-          console.log("[UI-DEBUG] isContinueBtnEnabled: continue button is enabled");
-          return true;
-        }
-
-        function waitForElement(selector, callback, timeout) {
-          timeout = timeout || 10000; // 10 seconds default
-          var startTime = Date.now();
-          
-          function checkForElement() {
-            var element = document.querySelector(selector);
-            if (element) {
-              console.log("[UI-DEBUG] Element found:", selector);
-              callback(element);
+          // Global variables for button reordering
+          var alreadyMoved = false;
+          var abortReorder = false;
+          var isInitialized = false;
+          function watchForElements() {
+            // qatch changes in #api 
+            var api = document.getElementById('api');
+            if (!api) {
+              console.log("[UI-DEBUG] - [watchForElements] #api not found");
               return;
             }
-            
-            if (Date.now() - startTime > timeout) {
-              console.log("[UI-DEBUG] Timeout waiting for element:", selector);
-              return;
-            }
-            
-            // Try again in 100ms
-            setTimeout(checkForElement, 100);
-          }
-          
-          checkForElement();
-        }
-
-        function initializeUIHelper() {
-          console.log("[UI-DEBUG] Initializing UI helper...");
-          console.log("[UI-DEBUG] Document ready state:", document.readyState);
-          
-          // Set up observers for multiple elements that could affect button state
-          function setupObservers() {
-            // Main document observer for any changes
-            var documentObserver = new MutationObserver(function (mutations) {
+            var observer = new MutationObserver(function (mutations) {
               mutations.forEach(function (mutation) {
-                console.log("[UI-DEBUG] Document mutation observed:", mutation.type);
-                // Try to reorder buttons on any significant change
-                setTimeout(function() {
-                  maybeReorder();
-                }, 50);
-              });
-            });
-            
-            // Observe the entire document body for changes
-            if (document.body) {
-              documentObserver.observe(document.body, { 
-                childList: true, 
-                subtree: true, 
-                attributes: true 
-              });
-            }
-            
-            // Try initial reorder
-            setTimeout(function() {
-              console.log("[UI-DEBUG] Initial reorder attempt");
-              maybeReorder();
-            }, 100);
-            
-            // Periodic checks as fallback
-            var checkCount = 0;
-            var maxChecks = 50; // Check for 5 seconds
-            var intervalId = setInterval(function() {
-              checkCount++;
-              if (maybeReorder() || checkCount >= maxChecks) {
-                clearInterval(intervalId);
-                console.log("[UI-DEBUG] Stopping periodic checks");
-              }
-            }, 100);
-          }
-          
-          // Wait for the continue button to appear, then set up observers
-          waitForElement("#continue", function(continueBtn) {
-            console.log("[UI-DEBUG] Continue button found, setting up observers");
-            setupObservers();
-            
-            // Set up specific observer for the continue button
-            var continueObserver = new MutationObserver(function (mutations) {
-              mutations.forEach(function (mutation) {
-                if (mutation.type === 'attributes' && 
-                    (mutation.attributeName === 'aria-disabled' || mutation.attributeName === 'style')) {
-                  var isEnabled = isContinueBtnEnabled(continueBtn);
-                  console.log("[UI-DEBUG] Continue button enabled state:", isEnabled);
-                  // Try to reorder when continue button state changes
-                  setTimeout(function() {
-                    maybeReorder();
-                  }, 50);
+                console.log("[UI-DEBUG] - [watchForElements] Mutation:", mutation);
+                var elements = getElements();
+                if (elementsInDom(elements)) {
+                  console.log("[UI-DEBUG] - [watchForElements] Elements in DOM");
+                  isInitialized = true;
                 }
               });
             });
-            
-            continueObserver.observe(continueBtn, { 
-              attributes: true 
-            });
-            
-            // Initial check
-            var initialState = isContinueBtnEnabled(continueBtn);
-            console.log("[UI-DEBUG] Initial continue button state:", initialState);
-          });
-          
-          // Also try to setup observers even if continue button isn't found yet
-          setTimeout(setupObservers, 500);
-        }
-
-        // Try multiple approaches to ensure execution
-        if (document.readyState === 'loading') {
-          console.log("[UI-DEBUG] Document still loading, waiting for DOMContentLoaded");
-          document.addEventListener("DOMContentLoaded", initializeUIHelper);
-        } else if (document.readyState === 'interactive' || document.readyState === 'complete') {
-          console.log("[UI-DEBUG] Document already loaded, initializing immediately");
-          initializeUIHelper();
-        }
-        
-        // Fallback: try again after a short delay
-        setTimeout(function() {
-          if (!document.querySelector("#continue")) {
-            console.log("[UI-DEBUG] Fallback: retrying initialization");
-            initializeUIHelper();
+            observer.observe(api, { childList: true, subtree: true, attributes: true, characterData: true });
           }
-        }, 1000);
+          function elementsInDom(elements) {
+            return elements.every(function (element) {
+              return element !== null;
+            });
+          }
+          function getElements() {
+            var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
+            var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
+            var continueContainer = document.querySelector('#attributeVerification > .buttons');
+            var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
+            return [
+              changeEmailBtn,
+              continueBtn,
+              continueContainer,
+              emailButtonsContainer
+            ];
+          }
+          function init() {
+            if (isInitialized) {
+              console.log("[UI-DEBUG] UI helper already initialized");
+              return;
+            }
+            isInitialized = true;
+            console.log("[UI-DEBUG] Initializing UI helper...");
+            console.log("[UI-DEBUG] Document ready state:", document.readyState);
+            var elements = getElements();
+            console.log("[UI-DEBUG] Elements:", elements);
+            if (elementsInDom(elements)) {
+              console.log("[UI-DEBUG] Elements in DOM");
+              
+            } else {
+              // watch for elements to be in the DOM
+              console.log("[UI-DEBUG] Watching for elements to be in the DOM");
+              watchForElements();
+            }
+          }
+          if (document.readyState === 'loading') {
+            console.log("[UI-DEBUG] Document still loading, waiting for DOMContentLoaded");
+            document.addEventListener("DOMContentLoaded", init);
+          } else if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            console.log("[UI-DEBUG] Document already loaded, initializing immediately");
+            init();
+          }
 
-      })();
+          // Fallback: try again after a short delay
+          setTimeout(function () {
+            if (!isInitialized) {
+              console.log("[UI-DEBUG] Fallback: retrying initialization");
+              init();
+            }
+          }, 1000);
+        })();
+      
+     
+
+      // function isElementVisible(element) {
+      //   if (!element) return false;
+      //   var style = window.getComputedStyle(element);
+      //   return style.display !== 'none' && 
+      //          style.visibility !== 'hidden' && 
+      //          style.opacity !== '0' && 
+      //          element.offsetWidth > 0 && 
+      //          element.offsetHeight > 0;
+      // }
+
+      // function areButtonsReady() {
+      //   var changeEmailBtn = document.getElementById('emailVerificationControl_but_change_claims');
+      //   var continueBtn = document.querySelector('#attributeVerification > .buttons #continue');
+      //   var continueContainer = document.querySelector('#attributeVerification > .buttons');
+      //   var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
+      //   if (!changeEmailBtn || !continueBtn || !continueContainer || !emailButtonsContainer) return false;
+
+      //   var changeVisible = isElementVisible(changeEmailBtn) && changeEmailBtn.getAttribute('aria-hidden') !== 'true';
+      //   var continueEnabled = continueBtn.getAttribute('aria-disabled') === 'false' && !continueBtn.disabled;
+        
+      //   console.log("[UI-DEBUG] areButtonsReady - changeVisible:", changeVisible, "continueEnabled:", continueEnabled);
+      //   return changeVisible && continueEnabled;
+      // }
+
+      // function areOtherChangeEmailSiblingsVisible() {
+      //   try {
+      //     var container = document.querySelector('#emailVerificationControl > .buttons');
+      //     if (!container) return false;
+      //     var buttons = Array.prototype.slice.call(container.querySelectorAll('button'));
+      //     var others = buttons.filter(function (b) { return b.id !== 'emailVerificationControl_but_change_claims'; });
+      //     var hasOtherVisible = others.some(function (btn) {
+      //       return isElementVisible(btn) && btn.getAttribute('aria-hidden') !== 'true';
+      //     });
+      //     console.log("[UI-DEBUG] areOtherChangeEmailSiblingsVisible:", hasOtherVisible);
+      //     return hasOtherVisible;
+      //   } catch (e) {
+      //     console.log("[UI-DEBUG] Error checking other email siblings:", e);
+      //     return false;
+      //   }
+      // }
+
+      // function moveContinueBeforeChangeEmail() {
+      //   if (alreadyMoved) {
+      //     console.log("[UI-DEBUG] Already moved, skipping");
+      //     return;
+      //   }
+        
+      //   var emailButtonsContainer = document.querySelector('#emailVerificationControl > .buttons');
+      //   var continueContainer = document.querySelector('#attributeVerification > .buttons');
+      //   if (!emailButtonsContainer || !continueContainer) {
+      //     console.log("[UI-DEBUG] Required containers not found");
+      //     return;
+      //   }
+
+      //   console.log("[UI-DEBUG] Moving continue button before change email button");
+      //   alreadyMoved = true;
+
+      //   var previousVisibility = continueContainer.style.visibility;
+      //   continueContainer.style.visibility = 'hidden';
+      //   emailButtonsContainer.parentNode.insertBefore(continueContainer, emailButtonsContainer);
+      //   continueContainer.setAttribute('data-reordered', 'true');
+      //   requestAnimationFrame(function () {
+      //     continueContainer.style.visibility = previousVisibility || '';
+      //     console.log("[UI-DEBUG] Button reordering completed");
+      //   });
+      // }
+
+      // function maybeReorder() {
+      //   if (abortReorder) {
+      //     console.log("[UI-DEBUG] Reorder aborted");
+      //     return false;
+      //   }
+        
+      //   if (areOtherChangeEmailSiblingsVisible()) {
+      //     console.log("[UI-DEBUG] Other email siblings visible, aborting reorder");
+      //     abortReorder = true; 
+      //     return false;
+      //   }
+        
+      //   if (areButtonsReady()) {
+      //     console.log("[UI-DEBUG] Buttons ready, executing reorder");
+      //     moveContinueBeforeChangeEmail();
+      //     return true;
+      //   }
+        
+      //   console.log("[UI-DEBUG] Buttons not ready yet");
+      //   return false;
+      // }
+
+      
+      // (function () {
+      //   "use strict";
+
+      //   function isContinueBtnEnabled(btn) {
+      //     if (!btn) return false;
+      //     var computedStyle = window.getComputedStyle(btn);
+      //     // is enabled when aria-disabled is false and opacity is 1
+      //     console.log(
+      //       "[UI-DEBUG] isContinueBtnEnabled: checking if continue button is enabled",
+      //       btn.getAttribute("aria-disabled"),
+      //       computedStyle.opacity
+      //     );
+      //     if (btn.getAttribute("aria-disabled") === "true") return false;
+      //     if (computedStyle.opacity !== "1") return false;
+      //     console.log("[UI-DEBUG] isContinueBtnEnabled: continue button is enabled");
+      //     return true;
+      //   }
+
+      //   function waitForElement(selector, callback, timeout) {
+      //     timeout = timeout || 10000; // 10 seconds default
+      //     var startTime = Date.now();
+          
+      //     function checkForElement() {
+      //       var element = document.querySelector(selector);
+      //       if (element) {
+      //         console.log("[UI-DEBUG] Element found:", selector);
+      //         callback(element);
+      //         return;
+      //       }
+            
+      //       if (Date.now() - startTime > timeout) {
+      //         console.log("[UI-DEBUG] Timeout waiting for element:", selector);
+      //         return;
+      //       }
+            
+      //       // Try again in 100ms
+      //       setTimeout(checkForElement, 100);
+      //     }
+          
+      //     checkForElement();
+      //   }
+
+      //   function initializeUIHelper() {
+      //     console.log("[UI-DEBUG] Initializing UI helper...");
+      //     console.log("[UI-DEBUG] Document ready state:", document.readyState);
+          
+      //     // Set up observers for multiple elements that could affect button state
+      //     function setupObservers() {
+      //       // Main document observer for any changes
+      //       var documentObserver = new MutationObserver(function (mutations) {
+      //         mutations.forEach(function (mutation) {
+      //           console.log("[UI-DEBUG] Document mutation observed:", mutation.type);
+      //           // Try to reorder buttons on any significant change
+      //           setTimeout(function() {
+      //             maybeReorder();
+      //           }, 50);
+      //         });
+      //       });
+            
+      //       // Observe the entire document body for changes
+      //       if (document.body) {
+      //         documentObserver.observe(document.body, { 
+      //           childList: true, 
+      //           subtree: true, 
+      //           attributes: true 
+      //         });
+      //       }
+            
+      //       // Try initial reorder
+      //       setTimeout(function() {
+      //         console.log("[UI-DEBUG] Initial reorder attempt");
+      //         maybeReorder();
+      //       }, 100);
+            
+      //       // Periodic checks as fallback
+      //       var checkCount = 0;
+      //       var maxChecks = 50; // Check for 5 seconds
+      //       var intervalId = setInterval(function() {
+      //         checkCount++;
+      //         if (maybeReorder() || checkCount >= maxChecks) {
+      //           clearInterval(intervalId);
+      //           console.log("[UI-DEBUG] Stopping periodic checks");
+      //         }
+      //       }, 100);
+      //     }
+          
+      //     // Wait for the continue button to appear, then set up observers
+      //     waitForElement("#continue", function(continueBtn) {
+      //       console.log("[UI-DEBUG] Continue button found, setting up observers");
+      //       setupObservers();
+            
+      //       // Set up specific observer for the continue button
+      //       var continueObserver = new MutationObserver(function (mutations) {
+      //         mutations.forEach(function (mutation) {
+      //           if (mutation.type === 'attributes' && 
+      //               (mutation.attributeName === 'aria-disabled' || mutation.attributeName === 'style')) {
+      //             var isEnabled = isContinueBtnEnabled(continueBtn);
+      //             console.log("[UI-DEBUG] Continue button enabled state:", isEnabled);
+      //             // Try to reorder when continue button state changes
+      //             setTimeout(function() {
+      //               maybeReorder();
+      //             }, 50);
+      //           }
+      //         });
+      //       });
+            
+      //       continueObserver.observe(continueBtn, { 
+      //         attributes: true 
+      //       });
+            
+      //       // Initial check
+      //       var initialState = isContinueBtnEnabled(continueBtn);
+      //       console.log("[UI-DEBUG] Initial continue button state:", initialState);
+      //     });
+          
+      //     // Also try to setup observers even if continue button isn't found yet
+      //     setTimeout(setupObservers, 500);
+      //   }
+
+      //   // Try multiple approaches to ensure execution
+      //   if (document.readyState === 'loading') {
+      //     console.log("[UI-DEBUG] Document still loading, waiting for DOMContentLoaded");
+      //     document.addEventListener("DOMContentLoaded", initializeUIHelper);
+      //   } else if (document.readyState === 'interactive' || document.readyState === 'complete') {
+      //     console.log("[UI-DEBUG] Document already loaded, initializing immediately");
+      //     initializeUIHelper();
+      //   }
+        
+      //   // Fallback: try again after a short delay
+      //   setTimeout(function() {
+      //     if (!document.querySelector("#continue")) {
+      //       console.log("[UI-DEBUG] Fallback: retrying initialization");
+      //       initializeUIHelper();
+      //     }
+      //   }, 1000);
+
+      // })();
 
     </script>
     <style id="common">
