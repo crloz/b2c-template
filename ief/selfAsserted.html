@@ -989,19 +989,10 @@
         text-align: left;
       }
 
-      /* Hide isResendRequest input field */
-      #isResendRequest,
-      input#isResendRequest,
-      input[id*="isResendRequest"] {
-        display: none !important;
-      }
-      #isResendRequest + label,
-      input#isResendRequest + label,
-      input[id*="isResendRequest"] + label {
-        display: none !important;
-      }
-      li#isResendRequest_li,
-      li[id*="isResendRequest"] {
+      /* Hide isResendRequest field completely */
+      .isResendRequest_li,
+      li.isResendRequest_li,
+      li[class*="isResendRequest"] {
         display: none !important;
       }
 

@@ -23,10 +23,10 @@
     const buttonsContainer = verifyBtn.parent();
     logger.debug('Continue button found:', verifyBtn.length > 0);
 
-    const resendInput = $("input#isResendRequest, input[id*='isResendRequest']");
+    const resendInput = $('#isResendRequest');
     logger.debug('isResendRequest input found:', resendInput.length > 0);
     if (resendInput.length > 0) {
-      resendInput.closest('.entry-item').hide();
+      resendInput.closest('li').hide();
       resendInput.val('false');
       logger.debug('isResendRequest hidden and set to false');
     }
@@ -68,19 +68,18 @@
 
         // After B2C processes and shows error, hide it and show success message
         setTimeout(() => {
-          $('.error.pageLevel, .error.itemLevel, .pageLevel').hide();
+          // Hide all error messages
+          $('#claimVerificationServerError, .error.pageLevel, .error.itemLevel').hide();
 
-          let successMsg = $('#resendSuccessMsg');
-          if (successMsg.length === 0) {
-            successMsg = $('<div id="resendSuccessMsg" class="resend-success-msg">New code sent to your email</div>');
-            $('.buttons').before(successMsg);
-          }
-          successMsg.show();
+          // Remove any existing success messages first, then add one
+          $('#resendSuccessMsg').remove();
+          const successMsg = $('<div id="resendSuccessMsg" class="resend-success-msg">New code sent to your email</div>');
+          $('#attributeList').before(successMsg);
 
           codeInput.val('').focus();
 
-          codeInput.one('input', () => successMsg.hide());
-        }, 100);
+          codeInput.one('input', () => $('#resendSuccessMsg').fadeOut());
+        }, 150);
       });
 
       buttonsContainer.append(resendBtn);
