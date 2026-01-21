@@ -8,6 +8,7 @@
     retryCount: 0,
     observer: null,
     rafId: null,
+    pendingResend: false,
   };
 
   const logger = {
@@ -18,6 +19,25 @@
 
   function handleB2CContent() {
     logger.debug('handleB2CContent() called');
+
+    // If we just did a resend, hide errors and show success message
+    if (state.pendingResend) {
+      const errorEl = $('#claimVerificationServerError:visible');
+      if (errorEl.length > 0) {
+        logger.debug('Hiding error after resend');
+        errorEl.hide();
+        
+        $('#resendSuccessMsg').remove();
+        const successMsg = $('<div id="resendSuccessMsg" class="resend-success-msg">New code sent to your email</div>');
+        $('#attributeList').before(successMsg);
+        
+        $('#verificationCode').val('').focus();
+        $('#verificationCode').one('input', () => {
+          $('#resendSuccessMsg').fadeOut();
+          state.pendingResend = false;
+        });
+      }
+    }
 
     const verifyBtn = $('#continue');
     const buttonsContainer = verifyBtn.parent();
@@ -51,6 +71,8 @@
       resendBtn.click(function () {
         logger.debug('Custom resend button clicked!');
 
+        state.pendingResend = true;
+
         if (resendInput.length > 0) {
           resendInput.val('true');
           logger.debug('isResendRequest set to:', resendInput.val());
@@ -65,21 +87,6 @@
 
         logger.debug('Triggering continue button click...');
         verifyBtn.click();
-
-        // After B2C processes and shows error, hide it and show success message
-        setTimeout(() => {
-          // Hide all error messages
-          $('#claimVerificationServerError, .error.pageLevel, .error.itemLevel').hide();
-
-          // Remove any existing success messages first, then add one
-          $('#resendSuccessMsg').remove();
-          const successMsg = $('<div id="resendSuccessMsg" class="resend-success-msg">New code sent to your email</div>');
-          $('#attributeList').before(successMsg);
-
-          codeInput.val('').focus();
-
-          codeInput.one('input', () => $('#resendSuccessMsg').fadeOut());
-        }, 150);
       });
 
       buttonsContainer.append(resendBtn);
