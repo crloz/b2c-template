@@ -65,6 +65,22 @@
 
         logger.debug('Triggering continue button click...');
         verifyBtn.click();
+
+        // After B2C processes and shows error, hide it and show success message
+        setTimeout(() => {
+          $('.error.pageLevel, .error.itemLevel, .pageLevel').hide();
+
+          let successMsg = $('#resendSuccessMsg');
+          if (successMsg.length === 0) {
+            successMsg = $('<div id="resendSuccessMsg" class="resend-success-msg">New code sent to your email</div>');
+            $('.buttons').before(successMsg);
+          }
+          successMsg.show();
+
+          codeInput.val('').focus();
+
+          codeInput.one('input', () => successMsg.hide());
+        }, 100);
       });
 
       buttonsContainer.append(resendBtn);
