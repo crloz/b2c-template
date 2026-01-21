@@ -1023,64 +1023,139 @@
       }
       /* endinject */
     </style>
-
+    <script src="script.js"></script>
     <script id="custom-script" nonce="{Nonce}">
+      console.log("[B2C Custom Script] Script loaded");
+
       $(document).ready(function () {
+        console.log("[B2C Custom Script] DOM Ready fired");
+
         function handleB2CContent() {
+          console.log("[B2C Custom Script] handleB2CContent() called");
+
           var verifyBtn = $("#continue");
           var buttonsContainer = verifyBtn.parent();
+          console.log(
+            "[B2C Custom Script] Continue button found:",
+            verifyBtn.length > 0,
+          );
 
           // 1. Hide the 'isResendRequest' input (it's internal logic)
           var resendInput = $(
             "input#isResendRequest, input[id*='isResendRequest']",
           );
+          console.log(
+            "[B2C Custom Script] isResendRequest input found:",
+            resendInput.length > 0,
+          );
           if (resendInput.length > 0) {
             resendInput.closest(".entry-item").hide(); // Hide the container/label too
             resendInput.val("false"); // Ensure default state
+            console.log(
+              "[B2C Custom Script] isResendRequest hidden and set to false",
+            );
           }
 
           // 2. Disable Email Input (ReadOnly Visual)
           var emailInput = $("input#signInNames\\.emailAddress, input#email");
+          console.log(
+            "[B2C Custom Script] Email input found:",
+            emailInput.length > 0,
+          );
           if (emailInput.length > 0) {
             emailInput.prop("readonly", true);
             emailInput.css("background-color", "#eee");
+            console.log("[B2C Custom Script] Email input set to readonly");
           }
 
           // 3. Add Custom "Send new code" Button if not exists
-          if (verifyBtn.length > 0 && $("#customResendBtn").length === 0) {
+          var existingBtn = $("#customResendBtn");
+          console.log(
+            "[B2C Custom Script] Custom button already exists:",
+            existingBtn.length > 0,
+          );
+
+          if (verifyBtn.length > 0 && existingBtn.length === 0) {
+            console.log("[B2C Custom Script] Creating custom resend button...");
             var resendBtn = $(
               '<button type="button" id="customResendBtn" class="custom-resend-btn">Send new code</button>',
             );
 
             resendBtn.click(function () {
+              console.log("[B2C Custom Script] Custom resend button clicked!");
+
               // A. Set the Resend Flag
               if (resendInput.length > 0) {
                 resendInput.val("true"); // Set TextBox value to 'true'
+                console.log(
+                  "[B2C Custom Script] isResendRequest set to:",
+                  resendInput.val(),
+                );
+              } else {
+                console.warn(
+                  "[B2C Custom Script] isResendRequest input not found!",
+                );
               }
 
               // B. Fill Dummy Code to pass 'Required' client check
               var codeInput = $("#verificationCode");
+              console.log(
+                "[B2C Custom Script] Verification code input found:",
+                codeInput.length > 0,
+              );
               if (codeInput.val() === "") {
                 codeInput.val("000000");
+                console.log("[B2C Custom Script] Filled dummy code: 000000");
+              } else {
+                console.log(
+                  "[B2C Custom Script] Code already filled:",
+                  codeInput.val(),
+                );
               }
 
               // C. Submit the Form
+              console.log(
+                "[B2C Custom Script] Triggering continue button click...",
+              );
               verifyBtn.click();
             });
 
             buttonsContainer.append(resendBtn);
             verifyBtn.css("margin-right", "10px");
+            console.log("[B2C Custom Script] Custom button added to page!");
+          } else if (verifyBtn.length === 0) {
+            console.warn(
+              "[B2C Custom Script] Continue button not found, skipping button creation",
+            );
           }
         }
 
+        console.log("[B2C Custom Script] Setting up MutationObserver...");
         var observer = new MutationObserver(function (mutations) {
+          console.log(
+            "[B2C Custom Script] Mutation detected, calling handleB2CContent()",
+          );
           handleB2CContent();
         });
 
         var resultDiv = document.getElementById("api");
+        console.log("[B2C Custom Script] API div found:", resultDiv !== null);
         if (resultDiv) {
           observer.observe(resultDiv, { childList: true, subtree: true });
+          console.log(
+            "[B2C Custom Script] MutationObserver started successfully",
+          );
+        } else {
+          console.error(
+            "[B2C Custom Script] API div (#api) not found! Cannot observe mutations.",
+          );
         }
+
+        // Try to run immediately in case content is already loaded
+        console.log(
+          "[B2C Custom Script] Running initial handleB2CContent check...",
+        );
+        handleB2CContent();
       });
     </script>
   </head>
