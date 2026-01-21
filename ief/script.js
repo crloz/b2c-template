@@ -58,14 +58,10 @@
           logger.warn('isResendRequest input not found!');
         }
 
+        // Fill dummy code - required because field is mandatory, VerifyOtp will fail and keep user on page
         const codeInput = $('#verificationCode');
-        logger.debug('Verification code input found:', codeInput.length > 0);
-        if (codeInput.val() === '') {
-          codeInput.val('000000');
-          logger.debug('Filled dummy code: 000000');
-        } else {
-          logger.debug('Code already filled:', codeInput.val());
-        }
+        codeInput.val('000000');
+        logger.debug('Filled dummy code for resend');
 
         logger.debug('Triggering continue button click...');
         verifyBtn.click();
