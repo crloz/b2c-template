@@ -988,8 +988,101 @@
       .qrCodeInfo {
         text-align: left;
       }
+
+      /* Hide isResendRequest input field */
+      #isResendRequest,
+      input#isResendRequest,
+      input[id*="isResendRequest"] {
+        display: none !important;
+      }
+      #isResendRequest + label,
+      input#isResendRequest + label,
+      input[id*="isResendRequest"] + label {
+        display: none !important;
+      }
+      li#isResendRequest_li,
+      li[id*="isResendRequest"] {
+        display: none !important;
+      }
+
+      /* Custom Resend Button Styling */
+      .custom-resend-btn {
+        width: inherit;
+        padding: 0 20px;
+        height: 50px;
+        background-color: #296ec6;
+        color: #fff;
+        margin-left: 5px;
+        border-radius: 0.5rem;
+        border: none;
+        font-size: 1em;
+        cursor: pointer;
+      }
+      .custom-resend-btn:hover {
+        background-color: #1662c7;
+      }
       /* endinject */
     </style>
+
+    <script id="custom-script" nonce="{Nonce}">
+      $(document).ready(function () {
+        function handleB2CContent() {
+          var verifyBtn = $("#continue");
+          var buttonsContainer = verifyBtn.parent();
+
+          // 1. Hide the 'isResendRequest' input (it's internal logic)
+          var resendInput = $(
+            "input#isResendRequest, input[id*='isResendRequest']",
+          );
+          if (resendInput.length > 0) {
+            resendInput.closest(".entry-item").hide(); // Hide the container/label too
+            resendInput.val("false"); // Ensure default state
+          }
+
+          // 2. Disable Email Input (ReadOnly Visual)
+          var emailInput = $("input#signInNames\\.emailAddress, input#email");
+          if (emailInput.length > 0) {
+            emailInput.prop("readonly", true);
+            emailInput.css("background-color", "#eee");
+          }
+
+          // 3. Add Custom "Send new code" Button if not exists
+          if (verifyBtn.length > 0 && $("#customResendBtn").length === 0) {
+            var resendBtn = $(
+              '<button type="button" id="customResendBtn" class="custom-resend-btn">Send new code</button>',
+            );
+
+            resendBtn.click(function () {
+              // A. Set the Resend Flag
+              if (resendInput.length > 0) {
+                resendInput.val("true"); // Set TextBox value to 'true'
+              }
+
+              // B. Fill Dummy Code to pass 'Required' client check
+              var codeInput = $("#verificationCode");
+              if (codeInput.val() === "") {
+                codeInput.val("000000");
+              }
+
+              // C. Submit the Form
+              verifyBtn.click();
+            });
+
+            buttonsContainer.append(resendBtn);
+            verifyBtn.css("margin-right", "10px");
+          }
+        }
+
+        var observer = new MutationObserver(function (mutations) {
+          handleB2CContent();
+        });
+
+        var resultDiv = document.getElementById("api");
+        if (resultDiv) {
+          observer.observe(resultDiv, { childList: true, subtree: true });
+        }
+      });
+    </script>
   </head>
   <body>
     <div
