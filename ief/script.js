@@ -1,4 +1,7 @@
 (function () {
+  if (window.location.href.indexOf('claimsexchange=ForgotPasswordExchange') > -1) {
+    return;
+  }
   const CONFIG = {
     MAX_RETRIES: 10,
   };
